@@ -4,9 +4,9 @@ services:
     env: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    buildCommand: ""
-    startCommand: ""
+    region: oregon
     envVars:
       - key: PORT
         value: 10000
     healthCheckPath: /
+    autoDeploy: true
