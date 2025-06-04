@@ -21,19 +21,29 @@ COPY . /var/www/html/
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
-# Configurar Apache para escuchar en el puerto correcto
-RUN sed -i 's/Listen 80/Listen ${PORT:-80}/' /etc/apache2/ports.conf
-
 # Crear un script de inicio personalizado
 RUN echo '#!/bin/bash\n\
-export PORT=${PORT:-80}\n\
-sed -i "s/Listen 80/Listen $PORT/" /etc/apache2/ports.conf\n\
-sed -i "s/:80>/:$PORT>/" /etc/apache2/sites-available/000-default.conf\n\
-apache2-foreground' > /usr/local/bin/start-apache.sh \
+set -e\n\
+\n\
+# Establecer puerto por defecto si no está definido\n\
+if [ -z "$PORT" ]; then\n\
+    export PORT=80\n\
+fi\n\
+\n\
+echo "Configurando Apache para el puerto $PORT"\n\
+\n\
+# Configurar ports.conf\n\
+echo "Listen $PORT" > /etc/apache2/ports.conf\n\
+\n\
+# Configurar el virtual host\n\
+sed -i "s/<VirtualHost \*:80>/<VirtualHost *:$PORT>/" /etc/apache2/sites-available/000-default.conf\n\
+\n\
+# Iniciar Apache\n\
+exec apache2-foreground' > /usr/local/bin/start-apache.sh \
     && chmod +x /usr/local/bin/start-apache.sh
 
-# Exponer puerto
-EXPOSE ${PORT:-80}
+# Exponer puerto dinámico
+EXPOSE 10000
 
 # Comando de inicio
 CMD ["/usr/local/bin/start-apache.sh"]
