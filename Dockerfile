@@ -1,49 +1,44 @@
-# Usar PHP 8.1 con Apache
 FROM php:8.1-apache
 
-# Instalar extensiones necesarias
+# Instalar extensiones de PHP
 RUN docker-php-ext-install pdo pdo_mysql
 
-# Habilitar mod_rewrite para Apache
-RUN a2enmod rewrite
+# Habilitar módulos de Apache
+RUN a2enmod rewrite headers
 
-# Configurar el DocumentRoot
-ENV APACHE_DOCUMENT_ROOT /var/www/html
-
-# Actualizar la configuración de Apache
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+# Copiar configuración personalizada de Apache
+COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
 
 # Copiar archivos del proyecto
 COPY . /var/www/html/
 
-# Dar permisos correctos
+# Establecer permisos
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
-# Crear un script de inicio personalizado
+# Configurar ServerName
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# Script de inicio que maneja puerto dinámico
 RUN echo '#!/bin/bash\n\
 set -e\n\
+PORT=${PORT:-10000}\n\
+echo "Configurando Apache en puerto $PORT"\n\
 \n\
-# Establecer puerto por defecto si no está definido\n\
-if [ -z "$PORT" ]; then\n\
-    export PORT=80\n\
-fi\n\
-\n\
-echo "Configurando Apache para el puerto $PORT"\n\
-\n\
-# Configurar ports.conf\n\
+# Configurar puerto en ports.conf\n\
 echo "Listen $PORT" > /etc/apache2/ports.conf\n\
 \n\
-# Configurar el virtual host\n\
-sed -i "s/<VirtualHost \*:80>/<VirtualHost *:$PORT>/" /etc/apache2/sites-available/000-default.conf\n\
+# Actualizar VirtualHost con el puerto correcto\n\
+sed -i "s/<VirtualHost \*:10000>/<VirtualHost *:$PORT>/" /etc/apache2/sites-available/000-default.conf\n\
+\n\
+# Verificar configuración\n\
+apache2ctl configtest\n\
 \n\
 # Iniciar Apache\n\
-exec apache2-foreground' > /usr/local/bin/start-apache.sh \
-    && chmod +x /usr/local/bin/start-apache.sh
+exec apache2-foreground' > /usr/local/bin/start-server.sh
 
-# Exponer puerto dinámico
+RUN chmod +x /usr/local/bin/start-server.sh
+
 EXPOSE 10000
 
-# Comando de inicio
-CMD ["/usr/local/bin/start-apache.sh"]
+CMD ["/usr/local/bin/start-server.sh"]
