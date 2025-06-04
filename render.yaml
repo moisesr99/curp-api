@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: curp-api-php
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    buildCommand: ""
+    startCommand: ""
+    envVars:
+      - key: PORT
+        value: 10000
+    healthCheckPath: /
